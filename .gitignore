@@ -1,0 +1,15 @@
+node_modules
+.next
+*.tsbuildinfo
+next-env.d.ts
+.env*.local
+.playwright-mcp
+
+.vercel
+.env*
+.clerk
+
+# Source workbook holds student personal data: never commit it.
+*.xlsx
+.hallmark/
+.vercel

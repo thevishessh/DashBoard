@@ -1,0 +1,6 @@
+# Never upload the source workbook: it holds personal data (caste, religion, address, DOB...).
+*.xlsx
+.hallmark
+.playwright-mcp
+.env*
+.clerk

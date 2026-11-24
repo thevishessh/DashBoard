@@ -1,0 +1,54 @@
+/* Hallmark · shape: app screen · genre: modern-minimal · theme: Dose (deal 2/3, seed registrar-office-dashboard-tracking-bb2d·365d096e·2026-11-24·r0) · redesign: full
+ * nav: kept sidebar, quiet paper-2 rail, collapses to a top strip under 60rem · signature: the verification register, schools drilling to programs · states: loading, empty, error, full · dose: white, no plastic, no window light
+ * axes: light/grotesk-sans/chromatic-green · posture: committed · contrast: pass · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H5 E4 S4 R5 V4 · weakest: P, a registrar ledger is a familiar form; the argument is that not verified is grey, not an alarm, and green is earned */
+/* Hallmark · dropped onChange={(e) => setSort(e.target.value as Sort)}, onClick={() => setMode(m)}, onClick={(e) => { const label = (e as { activeLabel?: string } | null)?.activeLabel; if (onSelect && label) onSelect(label === selected ? "" : String(label)); }} · the program sort menu, the Count or percent toggle and the chart click left with the charts; the register sorts by any column and its rows filter on click */
+/* Hallmark · dropped onClick={() => downloadCsv(rows)}, onClick={() => set(k, "")}, onClick={() => setPage(0)} · export moved to the page header as downloadCsv(filtered); the filter chips duplicated the selects; the first page button left with the shorter pager */
+/* Hallmark · dropped onClick={() => onSelect(on ? "" : r.group)}, onClick={c.status ? () => onStatus(on ? "" : c.status!) : undefined}, onSelect={(g) => setOne("institute", g)}, onSelect={(g) => setOne("program", g)}, onSelect={setActive} · the same actions now run from the register rows, the status keys and the sidebar under new handler names */
+/* Hallmark · dismissed 49 · the Overview buttons carry .btn, which sets white-space: nowrap below, and whitespace-nowrap as well */
+@import "tailwindcss";
+@import "./tokens.css";
+@import "./base.css" layer(base);
+
+@layer components {
+  .control {
+    height: 36px;
+    border: 1px solid var(--color-muted);
+    border-radius: var(--radius-input);
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-size: var(--text-sm);
+    transition: border-color var(--dur-micro) var(--ease-out);
+  }
+  .control:hover { border-color: var(--color-ink-2); }
+  .control:focus-visible { outline: 2px solid var(--color-focus); outline-offset: -1px; }
+  .control:disabled { opacity: 0.55; cursor: not-allowed; }
+
+  .btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    height: 36px;
+    padding-inline: var(--space-md);
+    border-radius: var(--radius-input);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color var(--dur-micro) var(--ease-out), transform var(--dur-micro) var(--ease-out);
+  }
+  .btn::after { content: ""; position: absolute; inset: -4px; }
+  .btn:active { transform: translateY(1px); }
+  .btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+  .btn--primary { background-color: var(--color-accent); color: var(--color-accent-ink); }
+  .btn--primary:hover { background-color: var(--color-accent-deep); }
+  .btn--quiet { background-color: transparent; color: var(--color-ink-2); }
+  .btn--quiet:hover { background-color: var(--color-paper-3); }
+
+  .row-link { cursor: pointer; transition: background-color var(--dur-micro) var(--ease-out); }
+  .row-link:hover { background-color: var(--color-row-hover); }
+  .row-link:active { background-color: var(--color-paper-3); }
+
+  .uid { font-family: var(--font-outlier); font-size: var(--text-sm); }
+}
