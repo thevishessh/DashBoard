@@ -1,12 +1,15 @@
 "use client";
+import { logout } from "@/app/login/actions";
 import { COMING_SOON_LABEL, MODULES, type ModuleId } from "@/config/modules";
 
 export default function Sidebar({
   active,
   onSelect,
+  canSignOut = false,
 }: {
   active: ModuleId;
   onSelect: (id: ModuleId) => void;
+  canSignOut?: boolean;
 }) {
   return (
     <aside className="flex min-w-0 shrink-0 flex-col border-b border-rule bg-paper-2 lg:sticky lg:top-0 lg:h-dvh lg:w-[248px] lg:border-b-0 lg:border-r">
@@ -40,6 +43,13 @@ export default function Sidebar({
           ),
         )}
       </nav>
+      {canSignOut && (
+        <form action={logout} className="mt-auto hidden border-t border-rule px-5 py-4 lg:block">
+          <button type="submit" className="rounded-[4px] text-sm text-accent-deep underline underline-offset-2 hover:text-ink">
+            Sign out
+          </button>
+        </form>
+      )}
     </aside>
   );
 }

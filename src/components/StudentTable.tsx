@@ -2,7 +2,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { STATUS_BUCKETS, STATUS_LABELS } from "@/config/status";
 import type { StudentRow } from "@/lib/data/types";
+import { parsePendingDocs } from "@/lib/data/parse";
 import { normalizeStatus, toCsv } from "@/lib/metrics";
+
+const fmtDay = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
 const PAGE_SIZES = [25, 50, 100];
 type SortKey = "uid" | "name" | "program" | "institute" | "status";
@@ -32,7 +35,21 @@ export function StatusText({ raw }: { raw: string }) {
   return <span className={s === "Pending" ? "font-medium text-ink" : "text-muted"}>{STATUS_LABELS[s]}</span>;
 }
 
-export default function StudentTable({ rows, onClear }: { rows: StudentRow[]; onClear: () => void }) {
+export default function StudentTable({
+  rows: allRows,
+  onClear,
+  pendingOnly = false,
+  onPendingOnly,
+}: {
+  rows: StudentRow[];
+  onClear: () => void;
+  pendingOnly?: boolean;
+  onPendingOnly?: (v: boolean) => void;
+}) {
+  const rows = useMemo(
+    () => (pendingOnly ? allRows.filter((r) => normalizeStatus(r.rawStatus) !== "Verified" && parsePendingDocs(r.pendingDocs).length > 0) : allRows),
+    [allRows, pendingOnly],
+  );
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(25);
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "uid", dir: 1 });
@@ -74,6 +91,12 @@ export default function StudentTable({ rows, onClear }: { rows: StudentRow[]; on
         <p className="text-sm text-muted" data-table-count={rows.length}>
           {rows.length.toLocaleString("en-IN")} match the current filters
         </p>
+        {onPendingOnly && (
+          <label className="ml-auto flex items-center gap-2 text-sm text-ink-2">
+            <input type="checkbox" checked={pendingOnly} onChange={(e) => onPendingOnly(e.target.checked)} className="h-4 w-4 accent-[var(--color-accent)]" />
+            Only students with pending documents
+          </label>
+        )}
       </div>
 
       {rows.length === 0 ? (
@@ -86,7 +109,7 @@ export default function StudentTable({ rows, onClear }: { rows: StudentRow[]; on
       ) : (
         <>
           <div className="mt-3 overflow-x-auto">
-            <table className="w-full min-w-[720px] border-collapse text-sm">
+            <table className="w-full min-w-[960px] border-collapse text-sm">
               <thead className="text-xs text-muted">
                 <tr className="border-b border-rule">
                   <Th k="uid" className="sticky left-0 bg-paper">UID</Th>
@@ -94,6 +117,8 @@ export default function StudentTable({ rows, onClear }: { rows: StudentRow[]; on
                   <Th k="program">Program</Th>
                   <Th k="institute">School</Th>
                   <Th k="status">Status</Th>
+                  <th scope="col" className="whitespace-nowrap py-2 pr-4 text-left font-medium">Verified on</th>
+                  <th scope="col" className="whitespace-nowrap py-2 pr-4 text-left font-medium">Pending documents</th>
                 </tr>
               </thead>
               <tbody>
@@ -107,6 +132,13 @@ export default function StudentTable({ rows, onClear }: { rows: StudentRow[]; on
                     <td className="py-2.5 pr-4 text-ink-2">{r.institute}</td>
                     <td className="py-2.5 pr-4">
                       <StatusText raw={r.rawStatus} />
+                    </td>
+                    <td className="whitespace-nowrap py-2.5 pr-4 tabular-nums text-ink-2">{r.verifiedOn ? fmtDay(r.verifiedOn) : ""}</td>
+                    <td className="max-w-[32ch] py-2.5 pr-4 text-ink-2">
+                      {parsePendingDocs(r.pendingDocs).join(", ")}
+                      {r.pendingDue && normalizeStatus(r.rawStatus) !== "Verified" && parsePendingDocs(r.pendingDocs).length > 0 && (
+                        <span className="block text-xs text-muted">due {fmtDay(r.pendingDue)}</span>
+                      )}
                     </td>
                   </tr>
                 ))}

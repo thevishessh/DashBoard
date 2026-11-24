@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { STATUS_LABELS } from "@/config/status";
 import type { StudentRow } from "@/lib/data/types";
-import { bySchool, kpis } from "@/lib/metrics";
+import { bySchool, kpis, weeklyVerified } from "@/lib/metrics";
 import type { RequestRow } from "@/lib/requests/repo";
 import { complaintStats } from "@/lib/requests/inbox";
 import StatusBar from "./StatusBar";
@@ -49,6 +49,7 @@ function Figure({ value, label, kpi }: { value: number; label: string; kpi?: str
 
 function VerificationPanel({ students, onOpen }: { students: StudentRow[]; onOpen: (v: "verification", s?: string) => void }) {
   const k = useMemo(() => kpis(students), [students]);
+  const week = useMemo(() => weeklyVerified(students), [students]);
   const mostPending = useMemo(
     () =>
       bySchool(students)
@@ -69,6 +70,9 @@ function VerificationPanel({ students, onOpen }: { students: StudentRow[]; onOpe
           <span className="tabular-nums">{k.percent.Verified}%</span>
         </p>
       </div>
+      <p className="mt-2 text-sm text-ink-2" data-week={week.thisWeek}>
+        <b className="font-medium text-ink">{week.thisWeek}</b> newly verified this week (last week {week.lastWeek})
+      </p>
       <div className="mt-5">
         <StatusBar counts={k.counts} total={k.total} thick />
       </div>

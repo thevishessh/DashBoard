@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  addDays,
+  dailyVerified,
+  istToday,
+  missingDocuments,
+  weeklyVerified,
   applyFilters,
   byFeeStatus,
   bySchool,
@@ -31,6 +36,9 @@ function row(p: Partial<StudentRow> = {}): StudentRow {
     rawStatus: "Verified",
     feeStatus: "Active",
     residence: "Day Scholar",
+    pendingDocs: "",
+    verifiedOn: "",
+    pendingDue: "",
     ...p,
   };
 }
@@ -226,8 +234,53 @@ describe("CSV", () => {
     const csv = toCsv([row({ uid: "26ABCD0009", rawStatus: "VERIFIED" })]);
     const lines = csv.trim().split("\r\n");
     expect(lines).toHaveLength(2);
-    expect(lines[0]).toBe("UID,Name,Program,School,Verification Status,Raw Status,Fee Status,Residence");
+    expect(lines[0]).toBe("UID,Name,Program,School,Verification Status,Raw Status,Verified On,Pending Documents,Pending Documents Due,Fee Status,Residence");
     expect(lines[1]).toContain("26ABCD0009");
     expect(lines[1]).toContain(",Verified,VERIFIED,");
+  });
+});
+
+describe("daily progress", () => {
+  const today = "2026-11-24";
+  const rows = [
+    row({ rawStatus: "Verified", verifiedOn: "2026-11-24" }),
+    row({ rawStatus: "verified", verifiedOn: "2026-11-24" }),
+    row({ rawStatus: "Verified", verifiedOn: "2026-11-20" }),
+    row({ rawStatus: "Verified", verifiedOn: "2026-11-12" }),
+    row({ rawStatus: "Verified", verifiedOn: "2026-08-01" }),
+    row({ rawStatus: "Verified", verifiedOn: "" }),
+    row({ rawStatus: "Pending", verifiedOn: "2026-11-24" }),
+  ];
+
+  it("counts verifications per day with a running total", () => {
+    const { series, undated } = dailyVerified(rows, 5, today);
+    expect(series.map((p) => p.date)).toEqual(["2026-11-20", "2026-11-21", "2026-11-22", "2026-11-23", "2026-11-24"]);
+    expect(series.map((p) => p.verified)).toEqual([1, 0, 0, 0, 2]);
+    expect(series.map((p) => p.total)).toEqual([3, 3, 3, 3, 5]);
+    expect(undated).toBe(1);
+  });
+
+  it("compares this week with last week", () => {
+    expect(weeklyVerified(rows, today)).toEqual({ thisWeek: 3, lastWeek: 1 });
+  });
+
+  it("handles dates and the India day boundary", () => {
+    expect(addDays("2026-11-30", 1)).toBe("2026-12-01");
+    expect(istToday(Date.UTC(2026, 10, 24, 19, 0))).toBe("2026-11-25");
+  });
+});
+
+describe("missingDocuments", () => {
+  it("counts pending documents only for students not yet verified", () => {
+    const rows = [
+      row({ rawStatus: "Not Verified", pendingDocs: "Migration certificate, Character certificate" }),
+      row({ rawStatus: "Pending", pendingDocs: "MIGRATION CERTIFICATE" }),
+      row({ rawStatus: "Verified", pendingDocs: "Migration certificate" }),
+      row({ rawStatus: "Not Verified", pendingDocs: "All Documents Submitted" }),
+    ];
+    expect(missingDocuments(rows)).toEqual([
+      { doc: "Migration certificate", students: 2 },
+      { doc: "Character certificate", students: 1 },
+    ]);
   });
 });

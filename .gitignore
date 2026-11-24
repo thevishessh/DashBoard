@@ -13,3 +13,13 @@ next-env.d.ts
 *.xlsx
 .hallmark/
 .vercel
+
+# Google service account key: a secret, never commit or upload.
+google-service-account.json
+
+# Dashboard password, kept only on this computer
+DASHBOARD-PASSWORD.txt
+
+# Apps Script with the sync token: keep private
+apps-script-sync.gs
+apps-script-live.gs

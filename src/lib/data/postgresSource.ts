@@ -7,7 +7,7 @@ export class PostgresSource implements DataSource {
   async load(): Promise<LoadResult> {
     const sql = getSql();
     const rows = await sql`
-      SELECT uid, name, program, short_program, institute, cluster, semester, raw_status, fee_status, residence
+      SELECT uid, name, program, short_program, institute, cluster, semester, raw_status, fee_status, residence, pending_docs, verified_on, pending_due
       FROM students ORDER BY uid`;
     const [meta] = await sql`SELECT audit, imported_at FROM import_meta WHERE id = 1`;
     const students: StudentRow[] = rows.map((r) => ({
@@ -21,6 +21,9 @@ export class PostgresSource implements DataSource {
       rawStatus: String(r.raw_status),
       feeStatus: String(r.fee_status),
       residence: String(r.residence),
+      pendingDocs: String(r.pending_docs ?? ""),
+      verifiedOn: String(r.verified_on ?? ""),
+      pendingDue: String(r.pending_due ?? ""),
     }));
     const saved = (meta?.audit ?? {}) as Partial<LoadAudit>;
     return {

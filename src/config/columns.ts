@@ -20,10 +20,12 @@ export const MASTER_COLUMNS = {
 
 export type MasterField = keyof typeof MASTER_COLUMNS;
 
-/** Program tabs: status is taken from these (the master's XLOOKUP source). */
-export const PROGRAM_TAB_COLUMNS = {
-  uid: "UID",
-  status: "AD", // column letter; the header text in these tabs varies, so match by letter
+/** Program tabs: the columns read, found by header text in the header row (the row with "UID" in column C). */
+export const PROGRAM_TAB_HEADERS = {
+  status: /^verification status/i, // AD in most tabs, AC or AE in a few
+  pendingDocs: /^pending documents$/i,
+  verifiedOn: /^date of verification$/i,
+  pendingDue: /^date of pending documents/i,
 } as const;
 
 /** Tabs that are not program tabs and must be skipped when building the status map. */

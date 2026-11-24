@@ -12,6 +12,12 @@ export interface StudentRow {
   rawStatus: string;
   feeStatus: string; // StatusID
   residence: string; // FilterStatus
+  /** "Pending Documents" note from the program tab, as written. */
+  pendingDocs: string;
+  /** "Date of Verification" (YYYY-MM-DD), "" when absent. */
+  verifiedOn: string;
+  /** "Date of Pending Documents Submission" (YYYY-MM-DD), "" when absent. */
+  pendingDue: string;
 }
 
 export interface LoadAudit {

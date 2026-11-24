@@ -53,3 +53,8 @@ CREATE TABLE IF NOT EXISTS request_events (
   note        text NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS request_events_request_idx ON request_events (request_id, at);
+
+-- Added later: pending documents note and the two dates from the program tabs.
+ALTER TABLE students ADD COLUMN IF NOT EXISTS pending_docs text NOT NULL DEFAULT '';
+ALTER TABLE students ADD COLUMN IF NOT EXISTS verified_on  text NOT NULL DEFAULT '';
+ALTER TABLE students ADD COLUMN IF NOT EXISTS pending_due  text NOT NULL DEFAULT '';

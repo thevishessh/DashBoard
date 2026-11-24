@@ -1,5 +1,6 @@
 // All counting logic lives here: pure functions, no I/O, unit-tested in metrics.test.ts.
 import { STATUS_ALIASES, STATUS_BUCKETS, type StatusBucket } from "@/config/status";
+import { parsePendingDocs } from "@/lib/data/parse";
 import type { StudentRow } from "@/lib/data/types";
 
 /** Case/space-insensitive status match. Empty -> Blank; unrecognised -> Unknown (never dropped). */
@@ -179,6 +180,67 @@ export function verifiedRate(g: { total: number; Verified: number }): number {
   return pct(g.Verified, g.total);
 }
 
+// ---------- Daily progress and pending documents ----------
+
+export interface DayPoint {
+  date: string; // YYYY-MM-DD
+  verified: number; // newly verified that day
+  total: number; // verified so far, up to and including that day
+}
+
+/** Day-by-day verifications from the "Date of Verification" column, ending today (IST), `days` long. */
+export function dailyVerified(rows: StudentRow[], days = 30, today = istToday()): { series: DayPoint[]; undated: number } {
+  const perDay = new Map<string, number>();
+  let undated = 0;
+  for (const r of rows) {
+    if (normalizeStatus(r.rawStatus) !== "Verified") continue;
+    if (!r.verifiedOn) {
+      undated++;
+      continue;
+    }
+    perDay.set(r.verifiedOn, (perDay.get(r.verifiedOn) ?? 0) + 1);
+  }
+  const start = addDays(today, -(days - 1));
+  let running = 0;
+  for (const [d, n] of perDay) if (d < start) running += n;
+  const series: DayPoint[] = [];
+  for (let i = 0; i < days; i++) {
+    const date = addDays(start, i);
+    const n = perDay.get(date) ?? 0;
+    running += n;
+    series.push({ date, verified: n, total: running });
+  }
+  return { series, undated };
+}
+
+/** Newly verified in the 7 days ending today, and in the 7 days before that. */
+export function weeklyVerified(rows: StudentRow[], today = istToday()): { thisWeek: number; lastWeek: number } {
+  const { series } = dailyVerified(rows, 14, today);
+  const sum = (a: DayPoint[]) => a.reduce((s, p) => s + p.verified, 0);
+  return { thisWeek: sum(series.slice(7)), lastWeek: sum(series.slice(0, 7)) };
+}
+
+/** Documents still pending across students who are not yet verified, most common first. */
+export function missingDocuments(rows: StudentRow[]): { doc: string; students: number }[] {
+  const m = new Map<string, number>();
+  for (const r of rows) {
+    if (normalizeStatus(r.rawStatus) === "Verified") continue;
+    for (const d of parsePendingDocs(r.pendingDocs)) m.set(d, (m.get(d) ?? 0) + 1);
+  }
+  return [...m.entries()].map(([doc, students]) => ({ doc, students })).sort((a, b) => b.students - a.students || a.doc.localeCompare(b.doc));
+}
+
+/** Today's date in India (YYYY-MM-DD). */
+export function istToday(now = Date.now()): string {
+  return new Date(now + 5.5 * 3_600_000).toISOString().slice(0, 10);
+}
+
+export function addDays(iso: string, n: number): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
 /** Quote a CSV cell; neutralise spreadsheet formula injection (= + - @ tab CR). */
 export function csvCell(value: string): string {
   let v = value ?? "";
@@ -193,6 +255,9 @@ export const CSV_COLUMNS: { header: string; get: (r: StudentRow) => string }[] =
   { header: "School", get: (r) => r.institute },
   { header: "Verification Status", get: (r) => normalizeStatus(r.rawStatus) },
   { header: "Raw Status", get: (r) => r.rawStatus },
+  { header: "Verified On", get: (r) => r.verifiedOn },
+  { header: "Pending Documents", get: (r) => parsePendingDocs(r.pendingDocs).join("; ") },
+  { header: "Pending Documents Due", get: (r) => r.pendingDue },
   { header: "Fee Status", get: (r) => r.feeStatus },
   { header: "Residence", get: (r) => r.residence },
 ];

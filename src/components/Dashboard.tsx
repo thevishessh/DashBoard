@@ -17,10 +17,14 @@ import {
 } from "@/lib/metrics";
 import { toQuery, type VerificationTab } from "@/lib/urlState";
 import ComplaintsInbox from "./requests/ComplaintsInbox";
+import DailyProgress from "./DailyProgress";
 import DataQualityNote from "./DataQualityNote";
+import PendingDocuments from "./PendingDocuments";
 import FilterBar from "./FilterBar";
 import OverviewHome from "./OverviewHome";
+import LiveUpdates from "./LiveUpdates";
 import Sidebar from "./Sidebar";
+import SyncNowButton from "./SyncNowButton";
 import StatusSummary from "./StatusSummary";
 import StudentTable, { downloadCsv } from "./StudentTable";
 import VerificationRegister from "./VerificationRegister";
@@ -38,15 +42,20 @@ export default function Dashboard({
   initialView,
   initialFilters,
   initialTab,
+  canSignOut = false,
+  canSync = false,
 }: {
   rows: StudentRow[];
   audit: LoadAudit;
   initialView: ModuleId;
   initialFilters: Filters;
   initialTab: VerificationTab;
+  canSignOut?: boolean;
+  canSync?: boolean;
 }) {
   const [view, setView] = useState<ModuleId>(initialView);
   const [tab, setTab] = useState<VerificationTab>(initialTab);
+  const [pendingOnly, setPendingOnly] = useState(false);
   const [inboxStatus, setInboxStatus] = useState<RequestStatus | "">("Open");
   const [filters, setFilters] = useState<Filters>(() => pruneFilters(rows, initialFilters));
   const deferred = useDeferredValue(filters);
@@ -87,7 +96,8 @@ export default function Dashboard({
 
   return (
     <div className="lg:flex">
-      <Sidebar active={view} onSelect={setView} />
+      <LiveUpdates since={audit.loadedAt} />
+      <Sidebar active={view} onSelect={setView} canSignOut={canSignOut} />
 
       <main className="min-w-0 flex-1">
         <div className="mx-auto max-w-[var(--container)] px-5 pt-6 pb-16 md:px-10 md:pt-8">
@@ -96,6 +106,9 @@ export default function Dashboard({
               <header>
                 <h1>Overview</h1>
                 <p className="mt-1 text-sm text-muted">Every module at a glance. Open a module for the details.</p>
+                <div className="mt-3">
+                  <SyncNowButton lastSync={audit.loadedAt} canSync={canSync} />
+                </div>
               </header>
               <div className="mt-8">
                 <OverviewHome students={rows} onOpen={open} />
@@ -125,7 +138,9 @@ export default function Dashboard({
               <header className="flex flex-wrap items-end gap-x-6 gap-y-3">
                 <div className="min-w-0">
                   <h1>Document verification</h1>
-                  <p className="mt-1 text-sm text-muted">Admission batch 2026, data as on 4 November 2026</p>
+                  <div className="mt-2">
+                    <SyncNowButton lastSync={audit.loadedAt} canSync={canSync} />
+                  </div>
                 </div>
                 <button type="button" className="btn btn--primary ml-auto" onClick={() => downloadCsv(filtered)} disabled={filtered.length === 0}>
                   Export CSV
@@ -164,6 +179,17 @@ export default function Dashboard({
 
               {tab === "summary" ? (
                 <div className="mt-10 space-y-12">
+                  <div className="grid grid-cols-1 gap-12 xl:grid-cols-2">
+                    <DailyProgress rows={filtered} />
+                    <PendingDocuments
+                      rows={filtered}
+                      onShowStudents={() => {
+                        setPendingOnly(true);
+                        setTab("records");
+                        window.scrollTo({ top: 0 });
+                      }}
+                    />
+                  </div>
                   <VerificationRegister
                     id="register"
                     title={drill === "program" ? "Verification by program" : "Verification by school"}
@@ -197,7 +223,7 @@ export default function Dashboard({
                 </div>
               ) : (
                 <div className="mt-10">
-                  <StudentTable rows={filtered} onClear={() => update({}, "search")} />
+                  <StudentTable rows={filtered} onClear={() => update({}, "search")} pendingOnly={pendingOnly} onPendingOnly={setPendingOnly} />
                 </div>
               )}
             </>

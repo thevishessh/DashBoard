@@ -1,6 +1,6 @@
 import Dashboard from "@/components/Dashboard";
 import { notFound } from "next/navigation";
-import { getStaff } from "@/lib/auth/staff";
+import { getStaff, passwordRequired } from "@/lib/auth/staff";
 import { loadData } from "@/lib/data";
 import { readUrlState } from "@/lib/urlState";
 
@@ -14,7 +14,7 @@ export default async function Page({
 }) {
   const { view, filters, tab } = readUrlState(await searchParams);
   // Student names and UIDs are staff-only.
-  if (!(await getStaff())) notFound();
+  if (!(await getStaff())) notFound(); // the proxy sends password-less visitors to /login first
   try {
     const { rows, audit } = await loadData();
     // Only allow-listed StudentRow fields cross to the browser.
@@ -25,6 +25,8 @@ export default async function Page({
         initialView={view}
         initialFilters={filters}
         initialTab={tab}
+        canSignOut={passwordRequired()}
+        canSync={Boolean(process.env.APPS_SCRIPT_URL)}
       />
     );
   } catch (err) {
