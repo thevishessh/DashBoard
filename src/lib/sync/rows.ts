@@ -24,7 +24,7 @@ export const MAX_ROWS = 2000;
 const CLEARABLE = new Set<LiveField>(["rawStatus", "pendingDocs", "verifiedOn", "pendingDue"]);
 const MAX_LEN = 300;
 
-export function validateRowsPayload(body: unknown): { ok: true; rows: LiveRow[] } | { ok: false; error: string } {
+export function validateRowsPayload(body: unknown): { ok: true; rows: LiveRow[]; by: string } | { ok: false; error: string } {
   if (!body || typeof body !== "object" || !Array.isArray((body as { rows?: unknown }).rows))
     return { ok: false, error: "Expected { rows: [...] }." };
   const input = (body as { rows: unknown[] }).rows;
@@ -52,5 +52,8 @@ export function validateRowsPayload(body: unknown): { ok: true; rows: LiveRow[] 
     byUid.set(id, { uid: id, fields: { ...prev?.fields, ...clean } }); // later rows win
   }
   if (byUid.size === 0) return { ok: false, error: "No valid rows (UID and at least one known field)." };
-  return { ok: true, rows: [...byUid.values()] };
+  // Who made the edit (the Sheet editor's email). Optional; anything that is not an email is dropped.
+  const rawBy = (body as { by?: unknown }).by;
+  const by = typeof rawBy === "string" && /^[^\s@<>"]{1,64}@[^\s@<>"]{1,100}$/.test(rawBy.trim()) ? rawBy.trim().toLowerCase() : "";
+  return { ok: true, rows: [...byUid.values()], by };
 }

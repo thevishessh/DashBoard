@@ -3,6 +3,7 @@ import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import type { ModuleId } from "@/config/modules";
 import type { RequestStatus } from "@/config/requests";
 import type { StatusBucket } from "@/config/status";
+import type { StatusEvent } from "@/lib/activity";
 import type { LoadAudit, StudentRow } from "@/lib/data/types";
 import {
   applyFilters,
@@ -42,6 +43,7 @@ export default function Dashboard({
   initialView,
   initialFilters,
   initialTab,
+  events = [],
   canSignOut = false,
   canSync = false,
 }: {
@@ -50,6 +52,7 @@ export default function Dashboard({
   initialView: ModuleId;
   initialFilters: Filters;
   initialTab: VerificationTab;
+  events?: StatusEvent[];
   canSignOut?: boolean;
   canSync?: boolean;
 }) {
@@ -180,7 +183,7 @@ export default function Dashboard({
               {tab === "summary" ? (
                 <div className="mt-10 space-y-12">
                   <div className="grid grid-cols-1 gap-12 xl:grid-cols-2">
-                    <DailyProgress rows={filtered} />
+                    <DailyProgress rows={filtered} events={events} />
                     <PendingDocuments
                       rows={filtered}
                       onShowStudents={() => {

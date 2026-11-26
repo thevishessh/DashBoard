@@ -6,7 +6,7 @@ import type { FieldErrors } from "@/lib/requests/validate";
 type Phase = { kind: "editing" } | { kind: "sending" } | { kind: "sent"; ref: string };
 type Key = keyof FieldErrors;
 
-const FIELD_ORDER: Key[] = ["uid", "category", "subject", "details", "contactPhone", "contactEmail"];
+const FIELD_ORDER: Key[] = ["uid", "studentName", "studentProgram", "category", "subject", "details", "contactPhone", "contactEmail"];
 
 export default function RequestForm() {
   const [phase, setPhase] = useState<Phase>({ kind: "editing" });
@@ -97,9 +97,22 @@ export default function RequestForm() {
     <form ref={formRef} onSubmit={submit} noValidate className="space-y-5">
       <div>
         <Label k="uid">UID</Label>
-        <Hint k="uid">As printed on your ID card, for example 26ABCD1234</Hint>
+        <Hint k="uid">As printed on your ID card, for example 25ABCD1234.</Hint>
         <input {...a11y("uid", true)} required autoComplete="off" autoCapitalize="characters" spellCheck={false} maxLength={10} className={`${control} uppercase`} />
         <Err k="uid" />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <Label k="studentName">Your name</Label>
+          <input {...a11y("studentName")} required autoComplete="name" maxLength={80} className={control} />
+          <Err k="studentName" />
+        </div>
+        <div>
+          <Label k="studentProgram">Program</Label>
+          <input {...a11y("studentProgram")} required maxLength={120} placeholder="e.g. BCA, MBA" className={control} />
+          <Err k="studentProgram" />
+        </div>
       </div>
 
       <div>
@@ -123,7 +136,7 @@ export default function RequestForm() {
 
       <div>
         <Label k="details">Details</Label>
-        <Hint k="details">What happened, what you need, and any dates or receipt numbers.</Hint>
+        <Hint k="details">What happened, what you need.</Hint>
         <textarea
           {...a11y("details", true)}
           required
@@ -172,7 +185,7 @@ export default function RequestForm() {
         </a>
       </div>
       <p className="text-xs text-muted">
-        Your UID is only checked against the admission list. Only Registrar Office staff can see your request.
+        Only Registrar Office staff can see your request.
       </p>
     </form>
   );

@@ -58,3 +58,26 @@ CREATE INDEX IF NOT EXISTS request_events_request_idx ON request_events (request
 ALTER TABLE students ADD COLUMN IF NOT EXISTS pending_docs text NOT NULL DEFAULT '';
 ALTER TABLE students ADD COLUMN IF NOT EXISTS verified_on  text NOT NULL DEFAULT '';
 ALTER TABLE students ADD COLUMN IF NOT EXISTS pending_due  text NOT NULL DEFAULT '';
+
+-- Every change of a student's verification status: what it was, what it became, who changed it, when.
+-- Filled by live edits from the Google Sheet (actor = the editor's email) and by full syncs (actor '').
+CREATE TABLE IF NOT EXISTS status_events (
+  id          bigserial PRIMARY KEY,
+  uid         text NOT NULL,
+  from_status text NOT NULL DEFAULT '',
+  to_status   text NOT NULL DEFAULT '',
+  actor       text NOT NULL DEFAULT '',
+  source      text NOT NULL DEFAULT '',
+  at          timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS status_events_at_idx ON status_events (at DESC);
+
+-- Complaints from every batch: a request no longer needs the student in our list.
+-- The student's own name and program are kept with the request; batch comes from the UID's first two digits.
+ALTER TABLE requests DROP CONSTRAINT IF EXISTS requests_uid_fkey;
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS student_name    text NOT NULL DEFAULT '';
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS student_program text NOT NULL DEFAULT '';
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS batch           text NOT NULL DEFAULT '';
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS ip_hash         text NOT NULL DEFAULT '';
+CREATE INDEX IF NOT EXISTS requests_ip_idx ON requests (ip_hash, created_at DESC);
+CREATE INDEX IF NOT EXISTS requests_phone_idx ON requests (contact_phone, created_at DESC);

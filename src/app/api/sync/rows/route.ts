@@ -49,7 +49,11 @@ export async function POST(req: Request) {
     });
   try {
     const sql = getSql();
+    const uids = v.rows.map((r) => r.uid);
+    // One statement: remember the old statuses, apply the edit, and log every status that really changed.
     const updated = await sql`
+      WITH before AS (SELECT uid, raw_status FROM students WHERE uid = ANY(${uids}::text[])),
+      upd AS (
       UPDATE students s SET
         raw_status    = COALESCE(v.raw_status, s.raw_status),
         name          = COALESCE(v.name, s.name),
@@ -65,19 +69,28 @@ export async function POST(req: Request) {
         pending_due   = COALESCE(v.pending_due, s.pending_due),
         imported_at   = now()
       FROM unnest(
-        ${v.rows.map((r) => r.uid)}::text[],
+        ${uids}::text[],
         ${col("rawStatus")}::text[], ${col("name")}::text[], ${col("program")}::text[], ${col("shortProgram")}::text[],
         ${col("institute")}::text[], ${col("cluster")}::text[], ${col("semester")}::text[], ${col("feeStatus")}::text[],
         ${col("residence")}::text[], ${col("pendingDocs")}::text[], ${col("verifiedOn")}::text[], ${col("pendingDue")}::text[]
       ) AS v(uid, ${sql.unsafe(Object.values(COLUMN).join(", "))})
       WHERE s.uid = v.uid
-      RETURNING s.uid`;
+      RETURNING s.uid, s.raw_status
+      ),
+      logged AS (
+        INSERT INTO status_events (uid, from_status, to_status, actor, source)
+        SELECT upd.uid, before.raw_status, upd.raw_status, ${v.by}, 'live edit'
+        FROM upd JOIN before USING (uid)
+        WHERE before.raw_status IS DISTINCT FROM upd.raw_status
+        RETURNING 1
+      )
+      SELECT upd.uid, (SELECT count(*)::int FROM logged) AS changed FROM upd`;
     const label = `Google Sheet, live edit ${new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}`;
     await sql`
       UPDATE import_meta SET imported_at = now(), audit = jsonb_set(audit, '{source}', to_jsonb(${label}::text))
       WHERE id = 1`;
     invalidateData();
-    return NextResponse.json({ ok: true, updated: updated.length, unknown: v.rows.length - updated.length });
+    return NextResponse.json({ ok: true, updated: updated.length, statusChanges: updated[0]?.changed ?? 0, unknown: v.rows.length - updated.length });
   } catch (e) {
     console.error("live sync failed", e);
     return NextResponse.json({ error: "Could not save the edit." }, { status: 503 });

@@ -21,6 +21,9 @@ export const LIMITS = {
   phone: 15,
   email: 120,
   note: 1000,
-  /** A student can raise at most this many requests per day (spam guard). */
-  perUidPerDay: 5,
+  /** Spam guards. A UID or a mobile number: at most 2 requests a day. */
+  perUidPerDay: 2,
+  perPhonePerDay: 2,
+  /** One network (IP): generous, because a whole campus Wi-Fi can share one address. */
+  perNetworkPer10Min: 10,
 } as const;

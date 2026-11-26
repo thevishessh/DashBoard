@@ -190,7 +190,10 @@ export default function ComplaintsInbox({ initialStatus = "Open" }: { initialSta
                           </td>
                           <td className="py-2.5 pr-4">
                             <span className="block font-medium text-ink">{r.studentName}</span>
-                            <span className="uid block text-xs text-muted">{r.uid}</span>
+                            <span className="uid block text-xs text-muted">
+                              {r.uid}
+                              {r.batch && <span className="font-body">, {r.batch} batch{r.inList ? "" : ", not in student list"}</span>}
+                            </span>
                           </td>
                           <td className="py-2.5 pr-4 text-ink-2">{r.category}</td>
                           <td className="max-w-[28ch] truncate py-2.5 pr-4 text-ink" title={r.subject}>

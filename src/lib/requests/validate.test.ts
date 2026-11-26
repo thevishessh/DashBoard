@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { normaliseRef, validateNewRequest, validateStaffUpdate } from "./validate";
+import { batchOf, normaliseRef, validateNewRequest, validateStaffUpdate } from "./validate";
 
 const good = {
   uid: " 26abcd1234 ",
+  studentName: " Asha  Rao ",
+  studentProgram: "BCA",
   category: "ID card",
   subject: "ID card not received",
   details: "I joined in July and have not received my ID card yet.",
@@ -47,6 +49,21 @@ describe("validateNewRequest", () => {
   it("ignores fields that are not strings", () => {
     const r = validateNewRequest({ ...good, subject: { $gt: "" } as unknown as string });
     expect(r.ok).toBe(false);
+  });
+});
+
+describe("any batch", () => {
+  it("accepts every batch and reads the batch from the UID", () => {
+    const r = validateNewRequest({ ...good, uid: "25WXYZ0001" });
+    expect(r.ok && r.value.batch).toBe("2025");
+    expect(r.ok && r.value.studentName).toBe("Asha Rao");
+    expect(batchOf("27ABCD0001")).toBe("2027");
+  });
+
+  it("needs the student's name and program", () => {
+    const r = validateNewRequest({ ...good, studentName: "", studentProgram: " " });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(Object.keys(r.errors).sort()).toEqual(["studentName", "studentProgram"]);
   });
 });
 

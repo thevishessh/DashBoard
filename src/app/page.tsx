@@ -2,6 +2,7 @@ import Dashboard from "@/components/Dashboard";
 import { notFound } from "next/navigation";
 import { getStaff, passwordRequired } from "@/lib/auth/staff";
 import { loadData } from "@/lib/data";
+import { loadRecentEvents } from "@/lib/db/events";
 import { readUrlState } from "@/lib/urlState";
 
 // Always read the current file on request (cached in memory until it changes).
@@ -16,7 +17,7 @@ export default async function Page({
   // Student names and UIDs are staff-only.
   if (!(await getStaff())) notFound(); // the proxy sends password-less visitors to /login first
   try {
-    const { rows, audit } = await loadData();
+    const [{ rows, audit }, events] = await Promise.all([loadData(), loadRecentEvents()]);
     // Only allow-listed StudentRow fields cross to the browser.
     return (
       <Dashboard
@@ -25,6 +26,7 @@ export default async function Page({
         initialView={view}
         initialFilters={filters}
         initialTab={tab}
+        events={events}
         canSignOut={passwordRequired()}
         canSync={Boolean(process.env.APPS_SCRIPT_URL)}
       />

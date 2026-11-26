@@ -1,4 +1,13 @@
+import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
+
+/** The sender's network, hashed with a server secret: enough to rate-limit, without storing the IP address. */
+function networkHash(req: Request): string {
+  const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || req.headers.get("x-real-ip") || "";
+  if (!ip) return "";
+  const salt = process.env.AUTH_SECRET || process.env.SYNC_TOKEN || "registrar";
+  return createHash("sha256").update(`${salt}:${ip}`).digest("base64url").slice(0, 32);
+}
 import { createRequest } from "@/lib/requests/repo";
 import { validateNewRequest } from "@/lib/requests/validate";
 
@@ -23,17 +32,14 @@ export async function POST(req: Request) {
   if (!v.ok) return NextResponse.json({ errors: v.errors }, { status: 422 });
 
   try {
-    const r = await createRequest(v.value);
-    if (!r.ok && r.reason === "unknown_uid")
-      return NextResponse.json(
-        { errors: { uid: "This UID is not in the 2026 admission list. Check it against your ID card, or visit the Registrar Office." } },
-        { status: 422 },
-      );
-    if (!r.ok)
-      return NextResponse.json(
-        { error: "You have raised several requests today. Wait for the office to respond, or visit the Registrar Office." },
-        { status: 429 },
-      );
+    const r = await createRequest(v.value, networkHash(req));
+    if (!r.ok) {
+      const message =
+        r.reason === "too_many_network"
+          ? "Too many requests from this network right now. Try again in a few minutes."
+          : "You have already raised 2 requests today. Wait for the office to respond, or visit the Registrar Office.";
+      return NextResponse.json({ error: message }, { status: 429 });
+    }
     return NextResponse.json({ ref: r.ref }, { status: 201 });
   } catch (e) {
     console.error("createRequest failed", e);

@@ -12,7 +12,10 @@ export async function syncStudents(result: LoadResult): Promise<number> {
   const col = <K extends keyof (typeof rows)[number]>(k: K) => rows.map((r) => r[k]);
 
   // One statement for every row: arrays are sent as parameters and unnested by Postgres.
+  // Remember the old statuses so changes that arrive through a full sync are logged too (without a name).
   await sql`
+    WITH before AS (SELECT uid, raw_status FROM students),
+    up AS (
     INSERT INTO students (uid, name, program, short_program, institute, cluster, semester, raw_status, fee_status, residence, pending_docs, verified_on, pending_due, imported_at)
     SELECT *, now() FROM unnest(
       ${col("uid")}::text[], ${col("name")}::text[], ${col("program")}::text[], ${col("shortProgram")}::text[],
@@ -24,7 +27,13 @@ export async function syncStudents(result: LoadResult): Promise<number> {
       institute = EXCLUDED.institute, cluster = EXCLUDED.cluster, semester = EXCLUDED.semester,
       raw_status = EXCLUDED.raw_status, fee_status = EXCLUDED.fee_status, residence = EXCLUDED.residence,
       pending_docs = EXCLUDED.pending_docs, verified_on = EXCLUDED.verified_on, pending_due = EXCLUDED.pending_due,
-      imported_at = now()`;
+      imported_at = now()
+    RETURNING uid, raw_status
+    )
+    INSERT INTO status_events (uid, from_status, to_status, actor, source)
+    SELECT up.uid, before.raw_status, up.raw_status, '', 'full sync'
+    FROM up JOIN before USING (uid)
+    WHERE before.raw_status IS DISTINCT FROM up.raw_status`;
 
   const meta = { ...audit, source: audit.source.replace(/^xlsx: /, "") };
   await sql`

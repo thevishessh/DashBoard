@@ -4,6 +4,10 @@ import { LIMITS, REQUEST_CATEGORIES, REQUEST_STATUSES, type RequestCategory, typ
 
 export interface NewRequest {
   uid: string;
+  studentName: string;
+  studentProgram: string;
+  /** Admission year from the UID, e.g. "2025" for 25ABCD1234. */
+  batch: string;
   category: RequestCategory;
   subject: string;
   details: string;
@@ -21,6 +25,8 @@ export function validateNewRequest(input: Record<string, unknown>):
   | { ok: true; value: NewRequest }
   | { ok: false; errors: FieldErrors } {
   const uid = clean(input.uid).toUpperCase();
+  const studentName = clean(input.studentName);
+  const studentProgram = clean(input.studentProgram);
   const category = clean(input.category) as RequestCategory;
   const subject = clean(input.subject);
   const details = cleanMultiline(input.details);
@@ -29,6 +35,8 @@ export function validateNewRequest(input: Record<string, unknown>):
   const errors: FieldErrors = {};
 
   if (!UID_PATTERN.test(uid)) errors.uid = "Enter your UID as printed on your ID card, for example 26ABCD1234.";
+  if (studentName.length < 2 || studentName.length > 80 || !/[a-z]/i.test(studentName)) errors.studentName = "Enter your full name.";
+  if (studentProgram.length < 2 || studentProgram.length > 120) errors.studentProgram = "Enter your program, for example BCA or MBA.";
   if (!REQUEST_CATEGORIES.includes(category)) errors.category = "Choose what your request is about.";
   if (subject.length < 5) errors.subject = "Give a short subject of at least 5 characters.";
   else if (subject.length > LIMITS.subject) errors.subject = `Keep the subject under ${LIMITS.subject} characters.`;
@@ -40,7 +48,13 @@ export function validateNewRequest(input: Record<string, unknown>):
   if (!contactPhone && !contactEmail) errors.contactPhone = "Give a mobile number or an email so the office can reach you.";
 
   if (Object.keys(errors).length) return { ok: false, errors };
-  return { ok: true, value: { uid, category, subject, details, contactPhone, contactEmail } };
+  return { ok: true, value: { uid, studentName, studentProgram, batch: batchOf(uid), category, subject, details, contactPhone, contactEmail } };
+}
+
+/** "25ABCD1234" -> "2025". Works for every future batch. */
+export function batchOf(uid: string): string {
+  const m = /^(\d{2})/.exec(uid);
+  return m ? `20${m[1]}` : "";
 }
 
 export function validateStaffUpdate(input: Record<string, unknown>):

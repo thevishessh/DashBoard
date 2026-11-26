@@ -10,6 +10,10 @@ export interface RequestRow {
   studentName: string;
   program: string;
   institute: string;
+  /** Admission year from the UID ("2025"). */
+  batch: string;
+  /** True when the UID is in the student list; otherwise name and program are what the student typed. */
+  inList: boolean;
   category: string;
   subject: string;
   details: string;
@@ -32,22 +36,29 @@ export interface RequestEvent {
 
 type CreateResult =
   | { ok: true; ref: string }
-  | { ok: false; reason: "unknown_uid" | "too_many" };
+  | { ok: false; reason: "too_many_uid" | "too_many_phone" | "too_many_network" };
 
-/** Creates a request if the UID is in the student list. Never returns anything about the student. */
-export async function createRequest(r: NewRequest): Promise<CreateResult> {
+/**
+ * Creates a request from any batch (no student list needed). Spam guards: per UID and per mobile number
+ * per day, and per network (hashed IP) per 10 minutes. Never returns anything about the student.
+ */
+export async function createRequest(r: NewRequest, ipHash: string): Promise<CreateResult> {
   const sql = getSql();
-  const [student] = await sql`SELECT 1 AS ok FROM students WHERE uid = ${r.uid}`;
-  if (!student) return { ok: false, reason: "unknown_uid" };
-
-  const [{ n }] = await sql`
-    SELECT count(*)::int AS n FROM requests
-    WHERE uid = ${r.uid} AND created_at > now() - interval '1 day'`;
-  if (n >= LIMITS.perUidPerDay) return { ok: false, reason: "too_many" };
+  const [c] = await sql`
+    SELECT
+      count(*) FILTER (WHERE uid = ${r.uid})::int AS by_uid,
+      count(*) FILTER (WHERE ${r.contactPhone} <> '' AND contact_phone = ${r.contactPhone})::int AS by_phone,
+      count(*) FILTER (WHERE ${ipHash} <> '' AND ip_hash = ${ipHash} AND created_at > now() - interval '10 minutes')::int AS by_network
+    FROM requests
+    WHERE created_at > now() - interval '1 day'`;
+  if (c.by_uid >= LIMITS.perUidPerDay) return { ok: false, reason: "too_many_uid" };
+  if (c.by_phone >= LIMITS.perPhonePerDay) return { ok: false, reason: "too_many_phone" };
+  if (c.by_network >= LIMITS.perNetworkPer10Min) return { ok: false, reason: "too_many_network" };
 
   const [row] = await sql`
-    INSERT INTO requests (uid, category, subject, details, contact_phone, contact_email)
-    VALUES (${r.uid}, ${r.category}, ${r.subject}, ${r.details}, ${r.contactPhone}, ${r.contactEmail})
+    INSERT INTO requests (uid, category, subject, details, contact_phone, contact_email, student_name, student_program, batch, ip_hash)
+    VALUES (${r.uid}, ${r.category}, ${r.subject}, ${r.details}, ${r.contactPhone}, ${r.contactEmail},
+            ${r.studentName}, ${r.studentProgram}, ${r.batch}, ${ipHash})
     RETURNING id, ref`;
   await sql`INSERT INTO request_events (request_id, actor, to_status, note) VALUES (${row.id}, 'student', 'Open', 'Request raised')`;
   return { ok: true, ref: row.ref as string };
@@ -74,9 +85,11 @@ const mapRow = (r: Record<string, unknown>): RequestRow => ({
   id: Number(r.id),
   ref: String(r.ref),
   uid: String(r.uid),
-  studentName: String(r.name ?? ""),
-  program: String(r.program ?? ""),
+  studentName: String(r.name ?? r.student_name ?? ""),
+  program: String(r.program ?? r.student_program ?? ""),
   institute: String(r.institute ?? ""),
+  batch: String(r.batch || ""),
+  inList: r.name != null,
   category: String(r.category),
   subject: String(r.subject),
   details: String(r.details),
@@ -94,7 +107,7 @@ export async function listRequests(): Promise<RequestRow[]> {
   const sql = getSql();
   const rows = await sql`
     SELECT r.*, s.name, s.program, s.institute
-    FROM requests r JOIN students s ON s.uid = r.uid
+    FROM requests r LEFT JOIN students s ON s.uid = r.uid
     ORDER BY r.created_at DESC
     LIMIT 2000`;
   return rows.map(mapRow);
@@ -135,6 +148,6 @@ export async function updateRequest(
     INSERT INTO request_events (request_id, actor, from_status, to_status, note)
     VALUES (${id}, ${actor}, ${before.status}, ${next === before.status ? "" : next}, ${change.note})`;
   const [row] = await sql`
-    SELECT r.*, s.name, s.program, s.institute FROM requests r JOIN students s ON s.uid = r.uid WHERE r.id = ${id}`;
+    SELECT r.*, s.name, s.program, s.institute FROM requests r LEFT JOIN students s ON s.uid = r.uid WHERE r.id = ${id}`;
   return row ? mapRow(row) : null;
 }
